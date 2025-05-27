@@ -43,24 +43,32 @@ ls -la
 
 ### 2. Secrets Generation
 
-The CME stack uses a comprehensive secrets generation system that creates all necessary passwords, API keys, and configuration values.
+The CME stack uses a **template-based secrets system** that keeps all actual credentials out of the repository while providing clear structure for configuration.
 
 ```bash
-# Generate development secrets
+# Generate development secrets from templates
 ./scripts/generate-dev-secrets.sh
 
 # This script will:
-# - Generate secure random passwords for all services
-# - Create database connection strings
-# - Generate API keys and tokens
+# - Prompt for external service configuration (MariaDB, Redis, SMTP)
+# - Generate secure random passwords and keys for all services
+# - Create .env files from .env.template files with real values
 # - Output SQL commands for database setup
-# - Create environment files for each service
+# - Display admin credentials for all services
+# - Backup any existing .env files before generating new ones
 ```
 
-**Important**: Save the output from this script! It contains:
-- Database creation commands to run on your MariaDB server
-- Generated passwords and tokens you'll need for service configuration
-- Environment variable files created in each service directory
+**Security Features**:
+- **Templates in Repo**: `.env.template` files show structure but contain no real secrets
+- **Generated Files Ignored**: All `.env` files are automatically ignored by git
+- **Secure Generation**: Uses OpenSSL for cryptographically secure password generation
+- **Backup Protection**: Existing .env files are backed up before regeneration
+- **No Hardcoded Secrets**: All credentials are generated fresh each time
+
+**Important**: 
+- Save the admin credentials displayed by the script - they won't be shown again
+- The SQL commands must be run on your MariaDB server to create databases and users
+- All `.env` files are ignored by git and will never be committed accidentally
 
 ### 3. Database Setup
 
@@ -96,36 +104,48 @@ docker network ls | grep cme
 
 ### 5. Service Directory Structure
 
-Each service has its own configuration directory with generated environment files:
+Each service has its own configuration directory with template and generated files:
 
 ```
 services/
 ├── wordpress/
-│   ├── .env              # Generated WordPress environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   ├── wp-config.php     # WordPress configuration
 │   └── themes/           # Custom theme development
 ├── matomo/
-│   ├── .env              # Generated Matomo environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   └── config/           # Matomo configuration files
 ├── n8n/
-│   ├── .env              # Generated n8n environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   └── workflows/        # Custom workflow definitions
 ├── glitchtip/
-│   ├── .env              # Generated GlitchTip environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   └── config/           # Error tracking configuration
 ├── gitlab/
-│   ├── .env              # Generated GitLab environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   └── config/           # GitLab CI/CD configuration
 ├── prometheus/
+│   ├── .env.template     # Configuration template (in repo)
 │   ├── prometheus.yml    # Metrics collection configuration
 │   └── rules/           # Alerting rules
 ├── grafana/
-│   ├── .env              # Generated Grafana environment
+│   ├── .env.template     # Configuration template (in repo)
+│   ├── .env              # Generated environment (ignored by git)
 │   ├── dashboards/      # Custom dashboard definitions
 │   └── provisioning/    # Grafana provisioning configs
 └── loki/
     └── loki.yml         # Log aggregation configuration
 ```
+
+**Template System**:
+- **`.env.template`** files are committed to the repository and show configuration structure
+- **`.env`** files are generated locally and contain actual secrets (never committed)
+- **Backup Protection**: Script automatically backs up existing .env files before regeneration
 
 ## Development Environments
 
