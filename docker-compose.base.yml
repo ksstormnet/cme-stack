@@ -1,0 +1,87 @@
+# Base Docker Compose configuration for CME Development
+# Shared networks, volumes, and base configurations
+
+# =================================================================
+# NETWORKS
+# =================================================================
+networks:
+  external:
+    external: true
+    name: external
+  dev:
+    external: true
+    name: dev
+  monitor-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+
+# =================================================================
+# VOLUMES
+# =================================================================
+volumes:
+  # WordPress
+  wordpress-data:
+    driver: local
+  wordpress-logs:
+    driver: local
+  wordpress-cache:
+    driver: local
+
+  # Matomo
+  matomo-data:
+    driver: local
+  matomo-logs:
+    driver: local
+
+  # n8n
+  n8n-data:
+    driver: local
+  n8n-logs:
+    driver: local
+
+  # GlitchTip
+  glitchtip-uploads:
+    driver: local
+
+  # GitLab
+  gitlab-config:
+    driver: local
+  gitlab-logs:
+    driver: local
+  gitlab-data:
+    driver: local
+
+  # Monitoring
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+
+# =================================================================
+# COMMON SERVICE CONFIGURATIONS
+# =================================================================
+x-common-variables: &common-variables
+  env_file:
+    - .env.dev
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s

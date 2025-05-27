@@ -1,0 +1,55 @@
+# Main Development Docker Compose
+# Orchestrates all CME services with proper dependencies
+
+# Import all service configurations
+include:
+  - docker-compose.base.yml
+  - docker-compose.frontend.yml
+  - docker-compose.infrastructure.yml
+  - docker-compose.monitoring.yml
+
+# Override or add main orchestration services here if needed
+services:
+  # This file can remain minimal since services are defined in component files
+  # Add any global overrides or additional services here
+
+  # Example: Development-specific overrides
+  dev-wordpress:
+    # Override the WordPress image here with your custom container
+    # image: your-custom-wordpress:latest
+    labels:
+      - "traefik.enable=true" # Example if using Traefik
+      - "com.cme.service=frontend"
+      - "com.cme.environment=development"
+
+  dev-matomo:
+    labels:
+      - "com.cme.service=analytics"
+      - "com.cme.environment=development"
+
+  dev-n8n:
+    labels:
+      - "com.cme.service=automation"
+      - "com.cme.environment=development"
+
+  dev-glitchtip-web:
+    labels:
+      - "com.cme.service=monitoring"
+      - "com.cme.environment=development"
+
+  dev-gitlab:
+    labels:
+      - "com.cme.service=cicd"
+      - "com.cme.environment=development"
+
+  dev-prometheus:
+    labels:
+      - "com.cme.service=metrics"
+      - "com.cme.environment=development"
+
+  dev-grafana:
+    labels:
+      - "com.cme.service=visualization"
+      - "com.cme.environment=development"
+
+# Global development-specific configurations can go here
