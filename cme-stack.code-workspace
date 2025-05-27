@@ -1,39 +1,40 @@
 {
-    "folders": [
-        {
-            "name": "CME Stack Root",
-            "path": "."
-        },
-        {
-            "name": "Services",
-            "path": "./services"
-        },
-        {
-            "name": "Monitoring",
-            "path": "./monitoring"
-        },
-        {
-            "name": "Scripts",
-            "path": "./scripts"
-        }
-    ],
-    "settings": {
-        "editor.insertSpaces": true,
-        "editor.tabSize": 2,
-        "files.exclude": {
-            "**/.git": false,
-            "**/node_modules": true,
-            "**/.env": true,
-            "**/secrets": true,
-            "**/volumes": true,
-            "**/data": true
-        }
+  "folders": [
+    {
+      "name": "CME Stack Root",
+      "path": "."
     },
-    "extensions": {
-        "recommendations": [
-            "ms-azuretools.vscode-docker",
-            "redhat.vscode-yaml",
-            "ms-vscode.vscode-json"
-        ]
+    {
+      "name": "Services",
+      "path": "./services"
+    },
+    {
+      "name": "Monitoring",
+      "path": "./monitoring"
+    },
+    {
+      "name": "Scripts",
+      "path": "./scripts"
     }
+  ],
+  "settings": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "files.exclude": {
+      "**/.git": false,
+      "**/node_modules": true,
+      "**/.env": true,
+      "**/secrets": true,
+      "**/volumes": true,
+      "**/data": true
+    },
+    "cSpell.words": ["glitchtip", "matomo"]
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-azuretools.vscode-docker",
+      "redhat.vscode-yaml",
+      "ms-vscode.vscode-json"
+    ]
+  }
 }
