@@ -1,0 +1,104 @@
+# ================================================================
+# CME Stack - EditorConfig Configuration
+# ================================================================
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+
+# YAML files (Docker Compose, GitHub Actions, etc.)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# JavaScript and TypeScript
+[*.{js,ts,jsx,tsx}]
+indent_style = space
+indent_size = 2
+
+# CSS and SCSS
+[*.{css,scss,sass}]
+indent_style = space
+indent_size = 2
+
+# HTML and related
+[*.{html,htm,xml,svg}]
+indent_style = space
+indent_size = 2
+
+# PHP files
+[*.php]
+indent_style = space
+indent_size = 4
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Shell scripts
+[*.{sh,bash,zsh}]
+indent_style = space
+indent_size = 4
+
+# SQL files
+[*.sql]
+indent_style = space
+indent_size = 2
+
+# Configuration files
+[*.{conf,config,ini,cfg}]
+indent_style = space
+indent_size = 2
+
+# Environment files
+[.env*]
+indent_style = space
+indent_size = 2
+
+# Markdown files (don't trim trailing whitespace)
+[*.{md,markdown}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Makefiles (require tabs)
+[{Makefile,makefile,*.mk}]
+indent_style = tab
+
+# Docker files
+[{Dockerfile*,*.dockerfile}]
+indent_style = space
+indent_size = 2
+
+# WordPress specific
+[wp-config*.php]
+indent_style = space
+indent_size = 4
+
+# n8n workflow files
+[*.n8n]
+indent_style = space
+indent_size = 2
+
+# Grafana dashboard files
+[*-dashboard.json]
+indent_style = space
+indent_size = 2
+
+# Prometheus rules
+[*-rules.yml]
+indent_style = space
+indent_size = 2

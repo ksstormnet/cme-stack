@@ -1,0 +1,228 @@
+# ================================================================
+# CME Stack - Comprehensive .gitignore
+# ================================================================
+
+# Environment and Secrets
+.env
+.env.local
+.env.*.local
+.env.dev
+.env.staging
+.env.prod
+*.key
+*.pem
+*.p12
+*.crt
+secrets/
+vault/
+1password-credentials.json
+
+# Docker and Containers
+docker-compose.override.yml
+.docker/
+volumes/
+data/
+*.pid
+
+# Database
+*.sql.gz
+*.sql.bak
+backups/
+mysql-data/
+mariadb-data/
+postgres-data/
+
+# Logs and Runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Dependencies
+node_modules/
+jspm_packages/
+.yarn-integrity
+
+# Build outputs
+.cache
+.parcel-cache
+.next
+.nuxt
+dist
+.out
+.storybook-out
+
+# Coverage and Testing
+coverage/
+*.lcov
+.nyc_output
+test-results/
+playwright-report/
+
+# Editor and IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# WordPress Specific
+wp-config.php
+wp-content/uploads/
+wp-content/cache/
+wp-content/backup-db/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/debug.log
+wp-content/upgrade/
+
+# Matomo Specific
+matomo/config/config.ini.php
+matomo/tmp/
+matomo/logs/
+matomo/misc/user/
+
+# n8n Specific
+n8n/database.sqlite
+n8n/.n8n/
+
+# GitLab Specific
+gitlab/data/
+gitlab/logs/
+gitlab/config/
+gitlab/backups/
+
+# Monitoring Data
+prometheus/data/
+grafana/data/
+loki/data/
+promtail/positions.yaml
+alertmanager/data/
+
+# GlitchTip Specific
+glitchtip/media/
+glitchtip/static/collected/
+
+# 1Password Connect
+connect/data/
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# Terraform (for future infrastructure)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Local Development Overrides
+docker-compose.local.yml
+local-config/
+dev-overrides/
+
+# Certificate and SSL
+*.crt
+*.key
+*.pem
+ssl-certs/
+
+# Temporary and Cache
+tmp/
+temp/
+.cache/
+cache/
+
+# OS Generated
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Package Managers
+package-lock.json
+yarn.lock
+composer.lock
+
+# CDN and Assets
+cdn/
+assets/dist/
+public/dist/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Ruby
+*.gem
+.bundle/
+vendor/bundle/
+
+# PHP
+vendor/
+composer.phar
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Rust
+target/
+Cargo.lock
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Analytics and Tracking (development)
+analytics-data/
+tracking-data/
+visitor-data/
+
+# Email Testing (MailHog, etc.)
+mailhog-data/
+
+# Redis dumps
+dump.rdb
+
+# Elasticsearch
+elasticsearch-data/
+
+# MongoDB
+mongodb-data/
+
+# Application specific
+app-data/
+user-uploads/
+generated/
