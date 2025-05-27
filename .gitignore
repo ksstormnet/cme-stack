@@ -17,6 +17,9 @@ secrets/
 temp-secrets/
 generated-secrets/
 
+# vscode workspace file
+cme-stack.code-workspace
+
 # Database dumps with potentially sensitive data
 *.sql
 *.dump
