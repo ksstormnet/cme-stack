@@ -8,10 +8,16 @@ networks:
   external:
     external: true
     name: external
-  dev:
-    external: true
-    name: dev
-  monitor-net:
+  cme-dev:
+    external: false
+    name: cme-dev
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  cme-monitoring:
+    external: false
+    name: cme-monitoring
     driver: bridge
     ipam:
       config:
@@ -66,13 +72,12 @@ volumes:
 # =================================================================
 # COMMON SERVICE CONFIGURATIONS
 # =================================================================
-x-common-variables: &common-variables
-  env_file:
-    - .env.dev
 
+# Restart policy for all services
 x-restart-policy: &restart-policy
   restart: unless-stopped
 
+# Default logging configuration
 x-logging: &default-logging
   logging:
     driver: "json-file"
@@ -80,8 +85,27 @@ x-logging: &default-logging
       max-size: "10m"
       max-file: "3"
 
+# Default health check settings
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
   retries: 3
   start_period: 60s
+
+# Common labels for service identification
+x-dev-labels: &dev-labels
+  labels:
+    - "com.cme.project=cme-stack"
+    - "com.cme.environment=development"
+    - "com.cme.stack-version=0.2.0"
+
+# Security defaults for development
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+# Common tmpfs mounts for logs
+x-log-tmpfs: &log-tmpfs
+  tmpfs:
+    - /tmp
+    - /var/log

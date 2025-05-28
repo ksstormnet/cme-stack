@@ -8,48 +8,254 @@ include:
   - docker-compose.infrastructure.yml
   - docker-compose.monitoring.yml
 
-# Override or add main orchestration services here if needed
+# Development-specific service overrides and orchestration
 services:
-  # This file can remain minimal since services are defined in component files
-  # Add any global overrides or additional services here
+  # =================================================================
+  # DEVELOPMENT-SPECIFIC SERVICE OVERRIDES
+  # =================================================================
 
-  # Example: Development-specific overrides
+  # WordPress development overrides
   dev-wordpress:
-    # Override the WordPress image here with your custom container
-    # image: your-custom-wordpress:latest
-    labels:
-      - "traefik.enable=true" # Example if using Traefik
-      - "com.cme.service=frontend"
-      - "com.cme.environment=development"
+    environment:
+      # Additional development-specific WordPress configuration
+      WP_DEBUG_DISPLAY: "false"  # Keep false even in dev to avoid exposing errors to frontend, logs are better
+      WP_DEBUG_LOG: "true"
+      SCRIPT_DEBUG: "true"
+      SAVEQUERIES: "true"  # Log database queries for performance analysis
 
+      # Development-specific cache settings
+      WP_CACHE_KEY_SALT: dev_${RANDOM:-12345}
+
+      # Additional CME development constants
+      CME_DEBUG_MODE: "true"
+      CME_LOG_LEVEL: "debug"
+      CME_FEATURE_FLAGS: "persona_quiz,analytics,automation"
+    volumes:
+      # Additional development mounts for debugging
+      - ./services/wordpress/logs:/var/log/wordpress:rw
+      - ./services/wordpress/debug:/var/www/html/wp-content/debug:rw
+    labels:
+      - "com.cme.service=wordpress"
+      - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-wordpress.rule=Host(`dev-wordpress.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-wordpress.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-wordpress.tls=true"
+
+  # Matomo development overrides
   dev-matomo:
+    environment:
+      # Development-specific Matomo settings
+      MATOMO_GENERAL_ENABLE_BROWSER_ARCHIVING_TRIGGERING: "1"
+      MATOMO_GENERAL_BROWSER_ARCHIVING_DISABLED_ENFORCE: "0"
+      MATOMO_DEBUG: "1"
+      MATOMO_DEBUG_ON_DEMAND: "1"
+    volumes:
+      # Additional development mounts
+      - ./services/matomo/logs:/var/log/matomo:rw
     labels:
-      - "com.cme.service=analytics"
+      - "com.cme.service=matomo"
       - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-matomo.rule=Host(`dev-matomo.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-matomo.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-matomo.tls=true"
 
+  # n8n development overrides
   dev-n8n:
-    labels:
-      - "com.cme.service=automation"
-      - "com.cme.environment=development"
+    environment:
+      # Additional development settings for n8n
+      N8N_LOG_LEVEL: debug
+      N8N_LOG_OUTPUT: console,file
+      N8N_DEBUG_ENABLED: "true"
 
+      # Development-specific webhook settings
+      N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN: "true"
+      N8N_WEBHOOK_TUNNEL_ENABLED: "false"  # Disable tunnel in dev
+
+      # Performance settings for development
+      N8N_EXECUTIONS_DATA_MAX_AGE: 168  # Keep execution data for 1 week in dev
+      N8N_EXECUTIONS_DATA_PRUNE: "true"
+    volumes:
+      # Additional development mounts
+      - ./services/n8n/logs:/var/log/n8n:rw
+      - ./services/n8n/debug:/home/node/.n8n/debug:rw
+    labels:
+      - "com.cme.service=n8n"
+      - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-n8n.rule=Host(`dev-n8n.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-n8n.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-n8n.tls=true"
+
+  # GlitchTip development overrides
   dev-glitchtip-web:
-    labels:
-      - "com.cme.service=monitoring"
-      - "com.cme.environment=development"
+    environment:
+      # Development-specific GlitchTip settings
+      DEBUG: "true"
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 30  # Keep events for 30 days in dev
+      GLITCHTIP_MAX_TRANSACTION_LIFE_DAYS: 7  # Keep transactions for 1 week
 
+      # Development CORS settings
+      GLITCHTIP_CORS_ALLOW_ALL_ORIGINS: "true"
+      GLITCHTIP_CORS_ALLOWED_ORIGINS: "https://dev-wordpress.cme.ksstorm.dev,https://dev-n8n.cme.ksstorm.dev"
+    labels:
+      - "com.cme.service=glitchtip"
+      - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-glitchtip.rule=Host(`dev-glitchtip.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-glitchtip.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-glitchtip.tls=true"
+
+  # GitLab development overrides
   dev-gitlab:
-    labels:
-      - "com.cme.service=cicd"
-      - "com.cme.environment=development"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_EXTERNAL_URL}'
+        gitlab_rails['gitlab_shell_ssh_port'] = 50022
+        gitlab_rails['initial_root_password'] = '${GITLAB_ROOT_PASSWORD}'
+        gitlab_rails['gitlab_default_theme'] = 2
 
-  dev-prometheus:
-    labels:
-      - "com.cme.service=metrics"
-      - "com.cme.environment=development"
+        # Database configuration (using external MariaDB)
+        gitlab_rails['db_adapter'] = 'mysql2'
+        gitlab_rails['db_encoding'] = 'utf8mb4'
+        gitlab_rails['db_host'] = '${MARIADB_HOST}'
+        gitlab_rails['db_port'] = 3306
+        gitlab_rails['db_username'] = '${GITLAB_DB_USER}'
+        gitlab_rails['db_password'] = '${GITLAB_DB_PASSWORD}'
+        gitlab_rails['db_database'] = '${GITLAB_DB_NAME}'
 
+        # Redis configuration (using external Redis)
+        gitlab_rails['redis_host'] = '${REDIS_HOST}'
+        gitlab_rails['redis_port'] = ${REDIS_PORT:-6379}
+        gitlab_rails['redis_password'] = '${REDIS_PASSWORD}'
+        gitlab_rails['redis_database'] = ${GITLAB_REDIS_DB:-14}
+
+        # Development-specific optimizations
+        unicorn['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 5  # Reduced for development
+        postgresql['enable'] = false
+        redis['enable'] = false
+
+        # Development features
+        gitlab_rails['gitlab_email_enabled'] = true
+        gitlab_rails['gitlab_usage_ping_enabled'] = false
+        gitlab_rails['sentry_enabled'] = false
+        prometheus_monitoring['enable'] = false
+
+        # Development registry
+        registry_external_url '${GITLAB_REGISTRY_URL}'
+        gitlab_rails['registry_enabled'] = true
+
+        # Development backup settings
+        gitlab_rails['backup_path'] = '/var/opt/gitlab/backups'
+        gitlab_rails['backup_keep_time'] = 259200  # 3 days for development
+    labels:
+      - "com.cme.service=gitlab"
+      - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-gitlab.rule=Host(`dev-gitlab.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-gitlab.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-gitlab.tls=true"
+
+  # Grafana development overrides
   dev-grafana:
+    environment:
+      # Development-specific Grafana settings
+      GF_LOG_LEVEL: debug
+      GF_LOG_CONSOLE_LEVEL: debug
+      GF_LOG_FILE_LEVEL: debug
+
+      # Development authentication settings
+      GF_AUTH_ANONYMOUS_ENABLED: "false"  # Keep secure even in dev
+      GF_AUTH_BASIC_ENABLED: "true"
+
+      # Development dashboard settings
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/cme-overview.json
+
+      # Development data source settings
+      GF_FEATURE_TOGGLES_ENABLE: "ngalert,live,publicDashboards"
     labels:
-      - "com.cme.service=visualization"
+      - "com.cme.service=grafana"
+      - "com.cme.environment=development"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-grafana.rule=Host(`dev-grafana.cme.ksstorm.dev`)"
+      - "traefik.http.routers.dev-grafana.entrypoints=web,websecure"
+      - "traefik.http.routers.dev-grafana.tls=true"
+
+  # =================================================================
+  # DEVELOPMENT ORCHESTRATION SERVICE
+  # =================================================================
+
+  # Health check aggregator for development environment
+  dev-healthcheck:
+    image: busybox:1.36
+    container_name: dev-healthcheck
+    hostname: dev-healthcheck
+    <<: *dev-labels
+    command: >
+      sh -c "
+        echo 'CME Development Environment Health Check'
+        echo '======================================='
+        echo 'Checking core services...'
+
+        # Wait for core services to be healthy
+        echo 'Waiting for WordPress...'
+        until nc -z dev-wordpress 80; do sleep 2; done
+        echo 'WordPress: ✓'
+
+        echo 'Waiting for Matomo...'
+        until nc -z dev-matomo 80; do sleep 2; done
+        echo 'Matomo: ✓'
+
+        echo 'Waiting for n8n...'
+        until nc -z dev-n8n 5678; do sleep 2; done
+        echo 'n8n: ✓'
+
+        echo 'Waiting for GlitchTip...'
+        until nc -z dev-glitchtip-web 8000; do sleep 2; done
+        echo 'GlitchTip: ✓'
+
+        echo ''
+        echo 'CME Development Environment Ready!'
+        echo 'Services available at:'
+        echo '  WordPress: https://dev-wordpress.cme.ksstorm.dev'
+        echo '  Matomo:    https://dev-matomo.cme.ksstorm.dev'
+        echo '  n8n:       https://dev-n8n.cme.ksstorm.dev'
+        echo '  GlitchTip: https://dev-glitchtip.cme.ksstorm.dev'
+        echo '  GitLab:    https://dev-gitlab.cme.ksstorm.dev'
+        echo '  Grafana:   https://dev-grafana.cme.ksstorm.dev'
+        echo ''
+        echo 'Health check completed successfully'
+        sleep infinity
+      "
+    networks:
+      - cme-dev
+    depends_on:
+      - dev-wordpress
+      - dev-matomo
+      - dev-n8n
+      - dev-glitchtip-web
+    profiles:
+      - healthcheck  # Only run when specifically requested
+    labels:
+      - "com.cme.service=healthcheck"
       - "com.cme.environment=development"
 
-# Global development-specific configurations can go here
+# =================================================================
+# DEVELOPMENT ENVIRONMENT PROFILES
+# =================================================================
+
+# Profiles allow selective service startup for different dev scenarios:
+#
+# Core development (default):
+#   docker-compose -f docker-compose.dev.yml up
+#
+# Full development with tools:
+#   docker-compose -f docker-compose.dev.yml --profile tools up
+#
+# Extended monitoring:
+#   docker-compose -f docker-compose.dev.yml --profile monitoring-extended up
+#
+# Health check validation:
+#   docker-compose -f docker-compose.dev.yml --profile healthcheck up dev-healthcheck

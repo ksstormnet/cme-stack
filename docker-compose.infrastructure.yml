@@ -10,130 +10,58 @@ services:
     container_name: dev-glitchtip-web
     hostname: dev-glitchtip-web
     <<: *restart-policy
-    <<: *common-variables
     <<: *default-logging
+    <<: *dev-labels
+    <<: *security-opts
+    env_file:
+      - ./services/glitchtip/.env
     environment:
-      # Database configuration
-      DATABASE_URL: mysql://${GLITCHTIP_DB_USER:-glitchtip_user}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST:-mariadb}:3306/${GLITCHTIP_DB_NAME:-cme_glitchtip}
-      REDIS_URL: redis://${REDIS_HOST:-redis}:6379/2
+      # Database configuration - loaded from service .env file
+      DATABASE_URL: mysql://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST}:3306/${GLITCHTIP_DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT:-6379}/${GLITCHTIP_REDIS_DB:-13}
       SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-      # Server configuration
+
+      # Server configuration - loaded from service .env file
       PORT: 8000
-      EMAIL_URL: ${EMAIL_URL:-console://}
-      GLITCHTIP_DOMAIN: https://dev-glitchtip.cme.ksstorm.dev
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@cruisemadeeasy.dev}
+      EMAIL_URL: ${EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+
       # Worker configuration
       CELERY_WORKER_AUTOSCALE: "1,3"
       CELERY_WORKER_MAX_TASKS_PER_CHILD: 10000
+
       # Development settings
       DEBUG: "true"
       ENABLE_ORGANIZATION_CREATION: "true"
       ENABLE_USER_REGISTRATION: "true"
+
+      # SMTP Configuration - loaded from service .env file
+      EMAIL_HOST: ${SMTP_HOST}
+      EMAIL_PORT: ${SMTP_PORT:-587}
+      EMAIL_HOST_USER: ${SMTP_USER}
+      EMAIL_HOST_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_USE_TLS: "true"
     volumes:
       - glitchtip-uploads:/code/uploads
       - ./services/glitchtip/static:/code/static
+      - ./services/glitchtip/config:/code/config:ro
     networks:
       - external
-      - dev
+      - cme-dev
     depends_on:
       dev-glitchtip-migrate:
         condition: service_completed_successfully
       dev-glitchtip-worker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/0/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       <<: *healthcheck-defaults
       start_period: 90s
-
-  dev-glitchtip-worker:
-    image: glitchtip/glitchtip:latest
-    container_name: dev-glitchtip-worker
-    hostname: dev-glitchtip-worker
-    <<: *restart-policy
-    <<: *common-variables
-    <<: *default-logging
-    environment:
-      DATABASE_URL: mysql://${GLITCHTIP_DB_USER:-glitchtip_user}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST:-mariadb}:3306/${GLITCHTIP_DB_NAME:-cme_glitchtip}
-      REDIS_URL: redis://${REDIS_HOST:-redis}:6379/2
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-      EMAIL_URL: ${EMAIL_URL:-console://}
-      CELERY_WORKER_AUTOSCALE: "1,3"
-      CELERY_WORKER_MAX_TASKS_PER_CHILD: 10000
-    volumes:
-      - glitchtip-uploads:/code/uploads
-    networks:
-      - dev
-    depends_on:
-      dev-glitchtip-migrate:
-        condition: service_completed_successfully
-    command: ./bin/run-celery-with-beat.sh
-    healthcheck:
-      test: ["CMD", "celery", "inspect", "ping", "-A", "glitchtip.celeryapp"]
-      <<: *healthcheck-defaults
-
-  dev-glitchtip-migrate:
-    image: glitchtip/glitchtip:latest
-    container_name: dev-glitchtip-migrate
-    hostname: dev-glitchtip-migrate
-    <<: *common-variables
-    environment:
-      DATABASE_URL: mysql://${GLITCHTIP_DB_USER:-glitchtip_user}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST:-mariadb}:3306/${GLITCHTIP_DB_NAME:-cme_glitchtip}
-      REDIS_URL: redis://${REDIS_HOST:-redis}:6379/2
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-    networks:
-      - dev
-    command: ./manage.py migrate
-
-  # =================================================================
-  # GITLAB - Local Git Repository & CI/CD
-  # =================================================================
-  dev-gitlab:
-    image: gitlab/gitlab-ce:16.6.1-ce.0
-    container_name: dev-gitlab
-    hostname: dev-gitlab
-    <<: *restart-policy
-    <<: *common-variables
-    <<: *default-logging
-    ports:
-      - "50022:22" # SSH access required for Git operations
-    environment:
-      GITLAB_OMNIBUS_CONFIG: |
-        external_url 'https://dev-gitlab.cme.ksstorm.dev'
-        gitlab_rails['gitlab_shell_ssh_port'] = 50022
-        gitlab_rails['initial_root_password'] = '${GITLAB_ROOT_PASSWORD}'
-        gitlab_rails['gitlab_default_theme'] = 2
-
-        # Performance tuning for development
-        unicorn['worker_processes'] = 2
-        sidekiq['max_concurrency'] = 10
-        postgresql['shared_buffers'] = '128MB'
-
-        # Disable features not needed in dev
-        gitlab_rails['gitlab_email_enabled'] = false
-        gitlab_rails['gitlab_usage_ping_enabled'] = false
-        gitlab_rails['sentry_enabled'] = false
-
-        # Registry settings
-        registry_external_url 'https://dev-registry.cme.ksstorm.dev'
-        gitlab_rails['registry_enabled'] = true
-
-        # CI Runner settings
-        gitlab_ci_multi_runner['concurrent'] = 2
-    volumes:
-      - gitlab-config:/etc/gitlab
-      - gitlab-logs:/var/log/gitlab
-      - gitlab-data:/var/opt/gitlab
-      - ./services/gitlab/backup:/var/opt/gitlab/backups
-    networks:
-      - external
-      - dev
-    shm_size: 256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/-/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 5
-      start_period: 300s
+    labels:
+      - "com.cme.service=gitlab"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-gitlab.rule=Host(`dev-gitlab.cme.ksstorm.dev`)"
 
   # =================================================================
   # DEVELOPMENT UTILITIES
@@ -144,11 +72,13 @@ services:
     hostname: dev-mailhog
     <<: *restart-policy
     <<: *default-logging
+    <<: *dev-labels
+    <<: *security-opts
     ports:
       - "50025:8025" # Web UI - minimal exposure for email testing
     networks:
       - external
-      - dev
+      - cme-dev
     healthcheck:
       test:
         [
@@ -160,6 +90,10 @@ services:
           "http://localhost:8025",
         ]
       <<: *healthcheck-defaults
+    labels:
+      - "com.cme.service=mailhog"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-mailhog.rule=Host(`dev-mailhog.cme.ksstorm.dev`)"
 
   # Optional: Redis Commander for Redis management
   dev-redis-commander:
@@ -168,18 +102,27 @@ services:
     hostname: dev-redis-commander
     <<: *restart-policy
     <<: *default-logging
+    <<: *dev-labels
+    <<: *security-opts
+    env_file:
+      - ./services/redis-commander/.env
     environment:
-      REDIS_HOSTS: "local:${REDIS_HOST:-redis}:6379"
-      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
-      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-admin}
+      REDIS_HOSTS: "local:${REDIS_HOST}:${REDIS_PORT:-6379}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      HTTP_USER: ${REDIS_COMMANDER_USER}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD}
     networks:
       - external
-      - dev
+      - cme-dev
     profiles:
       - tools # Only start when 'tools' profile is specified
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
       <<: *healthcheck-defaults
+    labels:
+      - "com.cme.service=redis-commander"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-redis-commander.rule=Host(`dev-redis-commander.cme.ksstorm.dev`)"
 
   # Optional: Adminer for database management
   dev-adminer:
@@ -188,18 +131,189 @@ services:
     hostname: dev-adminer
     <<: *restart-policy
     <<: *default-logging
+    <<: *dev-labels
+    <<: *security-opts
     environment:
-      ADMINER_DEFAULT_SERVER: ${MARIADB_HOST:-mariadb}
+      ADMINER_DEFAULT_SERVER: ${MARIADB_HOST}
       ADMINER_DESIGN: nette
     networks:
       - external
-      - dev
+      - cme-dev
     profiles:
       - tools # Only start when 'tools' profile is specified
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       <<: *healthcheck-defaults
+    labels:
+      - "com.cme.service=adminer"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-adminer.rule=Host(`dev-adminer.cme.ksstorm.dev`)"
 
 # Import base configuration
 include:
   - docker-compose.base.yml
+      - "com.cme.service=glitchtip"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dev-glitchtip.rule=Host(`dev-glitchtip.cme.ksstorm.dev`)"
+
+  dev-glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    container_name: dev-glitchtip-worker
+    hostname: dev-glitchtip-worker
+    <<: *restart-policy
+    <<: *default-logging
+    <<: *dev-labels
+    <<: *security-opts
+    env_file:
+      - ./services/glitchtip/.env
+    environment:
+      DATABASE_URL: mysql://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST}:3306/${GLITCHTIP_DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT:-6379}/${GLITCHTIP_REDIS_DB:-13}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${EMAIL_URL}
+      CELERY_WORKER_AUTOSCALE: "1,3"
+      CELERY_WORKER_MAX_TASKS_PER_CHILD: 10000
+    volumes:
+      - glitchtip-uploads:/code/uploads
+    networks:
+      - cme-dev
+    depends_on:
+      dev-glitchtip-migrate:
+        condition: service_completed_successfully
+    command: ./bin/run-celery-with-beat.sh
+    healthcheck:
+      test: ["CMD", "celery", "inspect", "ping", "-A", "glitchtip.celeryapp"]
+      <<: *healthcheck-defaults
+    labels:
+      - "com.cme.service=glitchtip-worker"
+
+  dev-glitchtip-migrate:
+    image: glitchtip/glitchtip:latest
+    container_name: dev-glitchtip-migrate
+    hostname: dev-glitchtip-migrate
+    <<: *dev-labels
+    env_file:
+      - ./services/glitchtip/.env
+    environment:
+      DATABASE_URL: mysql://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@${MARIADB_HOST}:3306/${GLITCHTIP_DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT:-6379}/${GLITCHTIP_REDIS_DB:-13}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+    networks:
+      - cme-dev
+    command: >
+      sh -c "
+        echo 'Starting GlitchTip database migration...'
+
+        # Wait for database connection
+        echo 'Waiting for database connection...'
+        until nc -z ${MARIADB_HOST} 3306; do
+          echo 'Database not ready, waiting 5 seconds...'
+          sleep 5
+        done
+        echo 'Database connection established'
+
+        # Wait for Redis connection
+        echo 'Waiting for Redis connection...'
+        until nc -z ${REDIS_HOST} ${REDIS_PORT:-6379}; do
+          echo 'Redis not ready, waiting 5 seconds...'
+          sleep 5
+        done
+        echo 'Redis connection established'
+
+        # Run migrations
+        echo 'Running database migrations...'
+        ./manage.py migrate
+
+        echo 'GlitchTip migration completed successfully'
+        exit 0
+      "
+    labels:
+      - "com.cme.service=glitchtip-migrate"
+
+  # =================================================================
+  # GITLAB - Local Git Repository & CI/CD
+  # =================================================================
+  dev-gitlab:
+    image: gitlab/gitlab-ce:16.6.1-ce.0
+    container_name: dev-gitlab
+    hostname: dev-gitlab
+    <<: *restart-policy
+    <<: *default-logging
+    <<: *dev-labels
+    env_file:
+      - ./services/gitlab/.env
+    ports:
+      - "50022:22" # SSH access required for Git operations
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_EXTERNAL_URL}'
+        gitlab_rails['gitlab_shell_ssh_port'] = 50022
+        gitlab_rails['initial_root_password'] = '${GITLAB_ROOT_PASSWORD}'
+        gitlab_rails['gitlab_default_theme'] = 2
+
+        # Database configuration (using external MariaDB)
+        gitlab_rails['db_adapter'] = 'mysql2'
+        gitlab_rails['db_encoding'] = 'utf8mb4'
+        gitlab_rails['db_host'] = '${MARIADB_HOST}'
+        gitlab_rails['db_port'] = 3306
+        gitlab_rails['db_username'] = '${GITLAB_DB_USER}'
+        gitlab_rails['db_password'] = '${GITLAB_DB_PASSWORD}'
+        gitlab_rails['db_database'] = '${GITLAB_DB_NAME}'
+
+        # Redis configuration (using external Redis)
+        gitlab_rails['redis_host'] = '${REDIS_HOST}'
+        gitlab_rails['redis_port'] = ${REDIS_PORT:-6379}
+        gitlab_rails['redis_password'] = '${REDIS_PASSWORD}'
+        gitlab_rails['redis_database'] = ${GITLAB_REDIS_DB:-14}
+
+        # Performance tuning for development
+        unicorn['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 10
+        postgresql['enable'] = false  # Using external MariaDB
+        redis['enable'] = false       # Using external Redis
+
+        # Email configuration
+        gitlab_rails['gitlab_email_enabled'] = true
+        gitlab_rails['gitlab_email_from'] = '${GITLAB_EMAIL_FROM}'
+        gitlab_rails['gitlab_email_display_name'] = 'GitLab Development'
+        gitlab_rails['smtp_enable'] = true
+        gitlab_rails['smtp_address'] = '${SMTP_HOST}'
+        gitlab_rails['smtp_port'] = ${SMTP_PORT:-587}
+        gitlab_rails['smtp_user_name'] = '${SMTP_USER}'
+        gitlab_rails['smtp_password'] = '${SMTP_PASSWORD}'
+        gitlab_rails['smtp_domain'] = '${SMTP_DOMAIN}'
+        gitlab_rails['smtp_authentication'] = 'login'
+        gitlab_rails['smtp_enable_starttls_auto'] = true
+
+        # Disable features not needed in dev
+        gitlab_rails['gitlab_usage_ping_enabled'] = false
+        gitlab_rails['sentry_enabled'] = false
+        prometheus_monitoring['enable'] = false
+
+        # Registry settings
+        registry_external_url '${GITLAB_REGISTRY_URL}'
+        gitlab_rails['registry_enabled'] = true
+
+        # CI Runner settings
+        gitlab_ci_multi_runner['concurrent'] = 2
+
+        # Backup settings
+        gitlab_rails['backup_path'] = '/var/opt/gitlab/backups'
+        gitlab_rails['backup_keep_time'] = 604800  # 1 week
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+      - ./services/gitlab/backup:/var/opt/gitlab/backups
+      - ./services/gitlab/config:/etc/gitlab/config:ro
+    networks:
+      - external
+      - cme-dev
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/-/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
+    labels:
