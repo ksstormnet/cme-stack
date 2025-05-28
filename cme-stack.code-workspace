@@ -1,20 +1,8 @@
 {
   "folders": [
     {
-      "name": "CME Stack Root",
+      "name": "CME Stack",
       "path": "."
-    },
-    {
-      "name": "Services",
-      "path": "./services"
-    },
-    {
-      "name": "Monitoring",
-      "path": "./monitoring"
-    },
-    {
-      "name": "Scripts",
-      "path": "./scripts"
     }
   ],
   "settings": {
@@ -28,7 +16,7 @@
       "**/volumes": true,
       "**/data": true
     },
-    "cSpell.words": ["glitchtip", "matomo"]
+    "cSpell.words": ["Adminer", "glitchtip", "matomo"]
   },
   "extensions": {
     "recommendations": [

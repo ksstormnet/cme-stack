@@ -17,9 +17,6 @@ secrets/
 temp-secrets/
 generated-secrets/
 
-# vscode workspace file
-cme-stack.code-workspace
-
 # Database dumps with potentially sensitive data
 *.sql
 *.dump
@@ -59,10 +56,8 @@ services/*/logs/*.log
 .DS_Store
 
 # IDE files
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
+.vscode
+*.workspace
 
 # Node modules (if any)
 node_modules/
