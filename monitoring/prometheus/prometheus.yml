@@ -1,0 +1,63 @@
+# File: monitoring/prometheus/prometheus.yml
+# Prometheus configuration for CME Stack development environment
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - dev-alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['dev-node-exporter:9100']
+    scrape_interval: 30s
+
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['dev-cadvisor:8080']
+    scrape_interval: 30s
+
+  # WordPress metrics (if available)
+  - job_name: 'wordpress'
+    static_configs:
+      - targets: ['dev-wordpress:80']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 10s
+
+  # n8n metrics
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['dev-n8n:5678']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # GitLab metrics (if enabled)
+  - job_name: 'gitlab'
+    static_configs:
+      - targets: ['dev-gitlab:80']
+    metrics_path: '/-/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+
+  # GlitchTip metrics (if available)
+  - job_name: 'glitchtip'
+    static_configs:
+      - targets: ['dev-glitchtip-web:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
