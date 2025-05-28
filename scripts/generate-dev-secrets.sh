@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# File: scripts/generate-dev-secrets.sh
-# CME Stack Development Secrets Generator - Corrected Service List
-# Generates secure credentials for business services only (monitoring uses file configs)
-# 
+# CME Stack Development Secrets Generator - Updated for Corrected Docker Compose
+# Generates secure credentials for all services using templates that align with compose files
+#
 # Usage: ./scripts/generate-dev-secrets.sh
+#
+# This script:
+# 1. Generates secure random passwords and keys
+# 2. Creates .env files from templates with real values
+# 3. Outputs SQL commands for database setup
+# 4. Maintains security by never committing actual secrets
 
 set -euo pipefail
 
@@ -20,12 +25,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SERVICES_DIR="$PROJECT_ROOT/services"
 
-# Default database and Redis hosts
+# Default database and Redis hosts (customize these)
 DEFAULT_DB_HOST="mariadb.local"
 DEFAULT_REDIS_HOST="redis.local"
 
-echo -e "${BLUE}🔐 CME Stack Development Secrets Generator${NC}"
-echo -e "${BLUE}==========================================${NC}"
+echo -e "${BLUE}🔐 CME Stack Development Secrets Generator (Updated)${NC}"
+echo -e "${BLUE}====================================================${NC}"
 echo
 
 # Function to generate secure random string
@@ -44,28 +49,33 @@ prompt_config() {
     echo -e "${YELLOW}📋 Configuration Setup${NC}"
     echo "Enter your external service details (or press Enter for defaults):"
     echo
-    
+
     read -p "MariaDB Host [$DEFAULT_DB_HOST]: " DB_HOST
     DB_HOST=${DB_HOST:-$DEFAULT_DB_HOST}
-    
+
     read -p "Redis Host [$DEFAULT_REDIS_HOST]: " REDIS_HOST
     REDIS_HOST=${REDIS_HOST:-$DEFAULT_REDIS_HOST}
-    
+
     read -p "Redis Password (leave empty if no auth): " REDIS_PASSWORD
-    
-    read -p "SMTP Host (for email notifications): " SMTP_HOST
-    read -p "SMTP User: " SMTP_USER
-    read -s -p "SMTP Password: " SMTP_PASSWORD
+
     echo
-    
+    echo "For development, email will be handled by MailHog (no SMTP config needed)"
+    echo "All emails will be captured at: http://localhost:50025"
+    echo
+
+    # Set MailHog defaults for development
+    SMTP_HOST="dev-mailhog"
+    SMTP_PORT="1025"
+    SMTP_USER=""
+    SMTP_PASSWORD=""
+
     # API Keys (optional)
-    echo
     echo "External API Keys (optional - press Enter to skip):"
     read -p "OpenAI API Key: " OPENAI_API_KEY
     read -p "GoHighLevel API Key: " GHL_API_KEY
     read -p "GoHighLevel Location ID: " GHL_LOCATION_ID
     read -p "Voip.ms API Key: " VOIPMS_API_KEY
-    
+
     echo -e "${GREEN}✅ Configuration complete${NC}"
     echo
 }
@@ -75,40 +85,40 @@ generate_service_secrets() {
     local service=$1
     local template_file="$SERVICES_DIR/$service/.env.template"
     local env_file="$SERVICES_DIR/$service/.env"
-    
+
     if [[ ! -f "$template_file" ]]; then
         echo -e "${RED}❌ Template not found: $template_file${NC}"
         return 1
     fi
-    
+
     echo -e "${BLUE}🔑 Generating secrets for $service...${NC}"
-    
+
     # Create service directory if it doesn't exist
     mkdir -p "$SERVICES_DIR/$service"
-    
+
     # Copy template to .env file
     cp "$template_file" "$env_file"
-    
+
     # Generate service-specific passwords
     local db_password=$(generate_password 32)
     local admin_password=$(generate_password 16)
-    
+
     # Replace common placeholders first
     sed -i.bak \
-        -e "s/your-mariadb-host/$DB_HOST/g" \
-        -e "s/your-redis-host/$REDIS_HOST/g" \
-        -e "s/your-redis-password/$REDIS_PASSWORD/g" \
-        -e "s/your-smtp-host/$SMTP_HOST/g" \
-        -e "s/your-smtp-user/$SMTP_USER/g" \
-        -e "s/your-smtp-password/$SMTP_PASSWORD/g" \
-        -e "s/your-openai-api-key/$OPENAI_API_KEY/g" \
-        -e "s/your-ghl-api-key/$GHL_API_KEY/g" \
-        -e "s/your-ghl-location-id/$GHL_LOCATION_ID/g" \
-        -e "s/your-voipms-api-key/$VOIPMS_API_KEY/g" \
-        -e "s/GENERATED_PASSWORD_32_CHARS/$db_password/g" \
-        -e "s/GENERATED_ADMIN_PASSWORD/$admin_password/g" \
+        -e "s|your-mariadb-host|$DB_HOST|g" \
+        -e "s|your-redis-host|$REDIS_HOST|g" \
+        -e "s|your-redis-password|$REDIS_PASSWORD|g" \
+        -e "s|your-smtp-host|$SMTP_HOST|g" \
+        -e "s|your-smtp-user|$SMTP_USER|g" \
+        -e "s|your-smtp-password|$SMTP_PASSWORD|g" \
+        -e "s|your-openai-api-key|$OPENAI_API_KEY|g" \
+        -e "s|your-ghl-api-key|$GHL_API_KEY|g" \
+        -e "s|your-ghl-location-id|$GHL_LOCATION_ID|g" \
+        -e "s|your-voipms-api-key|$VOIPMS_API_KEY|g" \
+        -e "s|GENERATED_PASSWORD_32_CHARS|$db_password|g" \
+        -e "s|GENERATED_ADMIN_PASSWORD|$admin_password|g" \
         "$env_file"
-    
+
     # Service-specific replacements
     case $service in
         "wordpress")
@@ -122,77 +132,77 @@ generate_service_secrets() {
             local nonce_salt=$(generate_wp_salt)
             local cache_purge_key=$(generate_password 32)
             local matomo_token=$(generate_password 32)
-            
+
             sed -i.bak2 \
-                -e "s/GENERATED_64_CHAR_SECRET/$auth_key/g" \
-                -e "s/WP_SECURE_AUTH_KEY=.*/WP_SECURE_AUTH_KEY=$secure_auth_key/g" \
-                -e "s/WP_LOGGED_IN_KEY=.*/WP_LOGGED_IN_KEY=$logged_in_key/g" \
-                -e "s/WP_NONCE_KEY=.*/WP_NONCE_KEY=$nonce_key/g" \
-                -e "s/WP_AUTH_SALT=.*/WP_AUTH_SALT=$auth_salt/g" \
-                -e "s/WP_SECURE_AUTH_SALT=.*/WP_SECURE_AUTH_SALT=$secure_auth_salt/g" \
-                -e "s/WP_LOGGED_IN_SALT=.*/WP_LOGGED_IN_SALT=$logged_in_salt/g" \
-                -e "s/WP_NONCE_SALT=.*/WP_NONCE_SALT=$nonce_salt/g" \
-                -e "s/GENERATED_32_CHAR_SALT/$cache_purge_key/g" \
+                -e "s|GENERATED_64_CHAR_SECRET|$auth_key|g" \
+                -e "s|WP_SECURE_AUTH_KEY=.*|WP_SECURE_AUTH_KEY=$secure_auth_key|g" \
+                -e "s|WP_LOGGED_IN_KEY=.*|WP_LOGGED_IN_KEY=$logged_in_key|g" \
+                -e "s|WP_NONCE_KEY=.*|WP_NONCE_KEY=$nonce_key|g" \
+                -e "s|WP_AUTH_SALT=.*|WP_AUTH_SALT=$auth_salt|g" \
+                -e "s|WP_SECURE_AUTH_SALT=.*|WP_SECURE_AUTH_SALT=$secure_auth_salt|g" \
+                -e "s|WP_LOGGED_IN_SALT=.*|WP_LOGGED_IN_SALT=$logged_in_salt|g" \
+                -e "s|WP_NONCE_SALT=.*|WP_NONCE_SALT=$nonce_salt|g" \
+                -e "s|GENERATED_32_CHAR_SALT|$cache_purge_key|g" \
                 "$env_file"
             # Second pass for remaining WordPress-specific tokens
             sed -i.bak3 \
-                -e "s/GENERATED_32_CHAR_SALT/$matomo_token/g" \
+                -e "s|GENERATED_32_CHAR_SALT|$matomo_token|g" \
                 "$env_file"
             rm -f "$env_file.bak2" "$env_file.bak3"
             ;;
         "n8n")
             local encryption_key=$(generate_password 64)
             sed -i.bak2 \
-                -e "s/GENERATED_64_CHAR_ENCRYPTION_KEY/$encryption_key/g" \
+                -e "s|GENERATED_64_CHAR_ENCRYPTION_KEY|$encryption_key|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
         "matomo")
             local api_token=$(generate_password 32)
             sed -i.bak2 \
-                -e "s/GENERATED_32_CHAR_SALT/$api_token/g" \
+                -e "s|GENERATED_32_CHAR_SALT|$api_token|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
         "glitchtip")
             local secret_key=$(generate_password 64)
             sed -i.bak2 \
-                -e "s/GENERATED_64_CHAR_SECRET_KEY/$secret_key/g" \
+                -e "s|GENERATED_64_CHAR_SECRET_KEY|$secret_key|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
         "gitlab")
             local root_password=$(generate_password 20)
             sed -i.bak2 \
-                -e "s/GENERATED_ROOT_PASSWORD/$root_password/g" \
+                -e "s|GENERATED_ROOT_PASSWORD|$root_password|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
         "grafana")
             local secret_key=$(generate_password 64)
             sed -i.bak2 \
-                -e "s/GENERATED_64_CHAR_SECRET/$secret_key/g" \
+                -e "s|GENERATED_64_CHAR_SECRET|$secret_key|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
         *)
             # Generic replacements for other services
             sed -i.bak2 \
-                -e "s/GENERATED_64_CHAR_SECRET/$(generate_password 64)/g" \
-                -e "s/GENERATED_64_CHAR_SECRET_KEY/$(generate_password 64)/g" \
-                -e "s/GENERATED_32_CHAR_SALT/$(generate_password 32)/g" \
+                -e "s|GENERATED_64_CHAR_SECRET|$(generate_password 64)|g" \
+                -e "s|GENERATED_64_CHAR_SECRET_KEY|$(generate_password 64)|g" \
+                -e "s|GENERATED_32_CHAR_SALT|$(generate_password 32)|g" \
                 "$env_file"
             rm -f "$env_file.bak2"
             ;;
     esac
-    
+
     # Remove backup file
     rm -f "$env_file.bak"
-    
+
     # Store credentials for SQL generation and display
     SERVICE_CREDENTIALS[$service]="$db_password"
     ADMIN_PASSWORDS[$service]="$admin_password"
-    
+
     echo -e "${GREEN}✅ Generated $service secrets${NC}"
 }
 
@@ -203,9 +213,8 @@ generate_sql_commands() {
     echo
     echo "-- Run these commands on your MariaDB server ($DB_HOST):"
     echo
-    
-    # Only services that need databases
-    for service in wordpress matomo n8n glitchtip gitlab grafana; do
+
+    for service in wordpress matomo n8n glitchtip gitlab grafana prometheus; do
         if [[ -n "${SERVICE_CREDENTIALS[$service]:-}" ]]; then
             local password="${SERVICE_CREDENTIALS[$service]}"
             echo "-- $service database and user"
@@ -215,7 +224,7 @@ generate_sql_commands() {
             echo
         fi
     done
-    
+
     echo "FLUSH PRIVILEGES;"
     echo
     echo -e "${GREEN}✅ Database commands generated${NC}"
@@ -228,13 +237,16 @@ display_admin_credentials() {
     echo
     echo "Save these admin credentials securely:"
     echo
-    
-    for service in wordpress matomo n8n glitchtip gitlab grafana; do
+
+    for service in wordpress matomo n8n glitchtip gitlab grafana redis-commander alertmanager; do
         if [[ -n "${ADMIN_PASSWORDS[$service]:-}" ]]; then
             local password="${ADMIN_PASSWORDS[$service]}"
             case $service in
                 "gitlab")
                     echo -e "$service: ${GREEN}root${NC} / ${GREEN}$password${NC}"
+                    ;;
+                "redis-commander")
+                    echo -e "$service: ${GREEN}admin${NC} / ${GREEN}$password${NC}"
                     ;;
                 *)
                     echo -e "$service: ${GREEN}admin${NC} / ${GREEN}$password${NC}"
@@ -242,7 +254,7 @@ display_admin_credentials() {
             esac
         fi
     done
-    
+
     echo
     echo -e "${BLUE}💡 Service URLs (development):${NC}"
     echo "WordPress:   https://dev-wordpress.cme.ksstorm.dev"
@@ -252,45 +264,46 @@ display_admin_credentials() {
     echo "GitLab:      https://dev-gitlab.cme.ksstorm.dev"
     echo "Grafana:     https://dev-grafana.cme.ksstorm.dev"
     echo
-    echo -e "${BLUE}💡 Monitoring (file-configured):${NC}"
-    echo "Prometheus:  https://dev-prometheus.cme.ksstorm.dev"
-    echo "AlertManager: https://dev-alertmanager.cme.ksstorm.dev"
+    echo -e "${BLUE}💡 Optional Tools (--profile tools):${NC}"
+    echo "MailHog:     http://localhost:50025"
+    echo "Adminer:     https://dev-adminer.cme.ksstorm.dev"
+    echo "Redis Cmd:   https://dev-redis-commander.cme.ksstorm.dev"
     echo
 }
 
 # Function to check prerequisites
 check_prerequisites() {
     echo -e "${BLUE}🔍 Checking prerequisites...${NC}"
-    
+
     # Check for required commands
     local missing=()
-    
+
     if ! command -v openssl &> /dev/null; then
         missing+=("openssl")
     fi
-    
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo -e "${RED}❌ Missing required tools: ${missing[*]}${NC}"
         echo "Please install the missing tools and try again."
         exit 1
     fi
-    
-    # Check if templates exist - only business services need them
+
+    # Check if templates exist
     local templates_missing=()
-    local services=("wordpress" "matomo" "n8n" "glitchtip" "gitlab" "grafana")
-    
+    local services=("wordpress" "matomo" "n8n" "glitchtip" "gitlab" "grafana" "prometheus" "loki" "promtail" "alertmanager" "redis-commander")
+
     for service in "${services[@]}"; do
         if [[ ! -f "$SERVICES_DIR/$service/.env.template" ]]; then
             templates_missing+=("$service")
         fi
     done
-    
+
     if [[ ${#templates_missing[@]} -gt 0 ]]; then
         echo -e "${RED}❌ Missing .env.template files for: ${templates_missing[*]}${NC}"
         echo "Please ensure all template files are present in services/ directories."
         exit 1
     fi
-    
+
     echo -e "${GREEN}✅ Prerequisites check passed${NC}"
     echo
 }
@@ -298,23 +311,23 @@ check_prerequisites() {
 # Function to backup existing .env files
 backup_existing_env() {
     echo -e "${BLUE}💾 Backing up existing .env files...${NC}"
-    
+
     local backup_dir="$PROJECT_ROOT/temp-secrets/backup-$(date +%Y%m%d-%H%M%S)"
     local found_existing=false
-    
+
     for service_dir in "$SERVICES_DIR"/*; do
         if [[ -d "$service_dir" && -f "$service_dir/.env" ]]; then
             if [[ "$found_existing" == false ]]; then
                 mkdir -p "$backup_dir"
                 found_existing=true
             fi
-            
+
             local service=$(basename "$service_dir")
             cp "$service_dir/.env" "$backup_dir/$service.env"
             echo "  Backed up: $service"
         fi
     done
-    
+
     if [[ "$found_existing" == true ]]; then
         echo -e "${GREEN}✅ Existing .env files backed up to: $backup_dir${NC}"
     else
@@ -339,11 +352,14 @@ show_next_steps() {
     echo
     echo "4. Access services using the URLs and credentials listed above"
     echo
+    echo "5. For development tools (optional):"
+    echo "   ${GREEN}docker-compose -f docker-compose.dev.yml --profile tools up -d${NC}"
+    echo
     echo -e "${BLUE}💡 Tips:${NC}"
     echo "- All .env files are ignored by git (never committed)"
     echo "- Re-run this script anytime to regenerate credentials"
     echo "- Backup files are kept in temp-secrets/ for recovery"
-    echo "- Monitoring services use file-based config in monitoring/ directory"
+    echo "- Use 'docker-compose logs [service]' to troubleshoot issues"
     echo
     echo -e "${GREEN}✅ Development secrets setup complete!${NC}"
 }
@@ -355,23 +371,22 @@ main() {
         echo -e "${RED}❌ Please run this script from the CME project root directory${NC}"
         exit 1
     fi
-    
+
     # Initialize arrays for storing credentials
     declare -A SERVICE_CREDENTIALS
     declare -A ADMIN_PASSWORDS
-    
+
     # Run setup steps
     check_prerequisites
     backup_existing_env
     prompt_config
-    
-    echo -e "${BLUE}🔐 Generating secrets for business services only...${NC}"
-    echo -e "${BLUE}ℹ️  Monitoring services use file-based configuration${NC}"
+
+    echo -e "${BLUE}🔐 Generating secrets for all services...${NC}"
     echo
-    
-    # Generate secrets for business services only
-    local services=("wordpress" "matomo" "n8n" "glitchtip" "gitlab" "grafana")
-    
+
+    # Generate secrets for each service (matching the corrected compose files)
+    local services=("wordpress" "matomo" "n8n" "glitchtip" "gitlab" "grafana" "prometheus" "loki" "promtail" "alertmanager" "redis-commander")
+
     for service in "${services[@]}"; do
         if [[ -f "$SERVICES_DIR/$service/.env.template" ]]; then
             generate_service_secrets "$service"
@@ -379,7 +394,7 @@ main() {
             echo -e "${YELLOW}⚠️  Skipping $service (no template found)${NC}"
         fi
     done
-    
+
     echo
     generate_sql_commands
     echo
