@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    ports:
+      - "8080:80"
+    volumes:
+      - ./services/wordpress/wp-content:/var/www/html/wp-content
+      - ./services/wordpress/root-files/wp-config.php:/var/www/html/wp-config.php
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - wordpress-db-data:/var/lib/mysql
+
+  matomo:
+    image: matomo:latest
+    restart: always
+    environment:
+      MATOMO_DATABASE_HOST: matomo-db
+      MATOMO_DATABASE_ADAPTER: mysql
+      MATOMO_DATABASE_TABLES_PREFIX: matomo_
+      MATOMO_DATABASE_USERNAME: matomo
+      MATOMO_DATABASE_PASSWORD: matomo
+      MATOMO_DATABASE_DBNAME: matomo
+    ports:
+      - "8081:80"
+    depends_on:
+      - matomo-db
+    volumes:
+      - matomo-data:/var/www/html
+
+  matomo-db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_DATABASE: matomo
+      MYSQL_USER: matomo
+      MYSQL_PASSWORD: matomo
+      MYSQL_ROOT_PASSWORD: matomoroot
+    volumes:
+      - matomo-db-data:/var/lib/mysql
+
+volumes:
+  wordpress-db-data:
+  matomo-db-data:
+  matomo-data:
